@@ -1,0 +1,19 @@
+{
+  "name": "flyrank-scraper",
+  "version": "1.0.0",
+  "description": "Polite scraper for Books to Scrape - FlyRank Backend AI Engineering Week 5 (A9)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "Syed Abdullah Yaqoob",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cheerio": "^1.0.0",
+    "zod": "^3.23.8"
+  }
+}
