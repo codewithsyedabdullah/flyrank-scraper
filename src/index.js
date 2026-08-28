@@ -2,6 +2,7 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import fs from "fs";
 import path from "path";
+import { z } from "zod";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -147,8 +148,61 @@ export async function run() {
   }
   console.log(`detail_pages=${rawRecords.length}`);
 
-  const printed = { ...rawRecords[0] };
-  console.log("sample raw record:", JSON.stringify(printed, null, 2));
+  // Stage 4: normalize raw strings, validate with zod, dedupe by canonical URL
+  const bookSchema = z.object({
+    title: z.string(),
+    product_url: z.string().url(),
+    price_gbp: z.number().nonnegative(),
+    price_text: z.string(),
+    availability_text: z.string().nullable(),
+    rating: z.number().min(0).max(5),
+    rating_text: z.string().nullable(),
+    description: z.string().nullable(),
+    source_page: z.string().url(),
+    fetched_at: z.string(),
+  });
+
+  function normalize(raw) {
+    const priceMatch = raw.price_text?.match(/£([\d.]+)/);
+    const priceGbp = priceMatch ? parseFloat(priceMatch[1]) : null;
+    const ratingMap = { One: 1, Two: 2, Three: 3, Four: 4, Five: 5 };
+    const rating = raw.rating_text ? (ratingMap[raw.rating_text] ?? null) : null;
+    return {
+      title: raw.title,
+      product_url: raw.product_url,
+      price_gbp: priceGbp,
+      price_text: raw.price_text,
+      availability_text: raw.availability_text,
+      rating,
+      rating_text: raw.rating_text,
+      description: raw.description,
+      source_page: raw.source_page,
+      fetched_at: raw.fetched_at,
+    };
+  }
+
+  const byUrl = new Map();
+  const errors = [];
+  for (const raw of rawRecords) {
+    const record = normalize(raw);
+    try {
+      bookSchema.parse(record);
+      byUrl.set(record.product_url, record);
+    } catch (verr) {
+      errors.push({ record: raw, reason: verr.errors.map((e) => e.message).join("; ") });
+    }
+  }
+
+  const books = [...byUrl.values()];
+  fs.writeFileSync(
+    path.join(OUTPUT_DIR, "books.json"),
+    JSON.stringify({ count: books.length, books }, null, 2)
+  );
+  fs.writeFileSync(
+    path.join(OUTPUT_DIR, "errors.json"),
+    JSON.stringify({ count: errors.length, errors }, null, 2)
+  );
+  console.log(`books.json -> ${books.length} valid records, errors.json -> ${errors.length}`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
