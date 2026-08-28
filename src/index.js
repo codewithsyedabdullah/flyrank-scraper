@@ -88,6 +88,29 @@ function collectBookLinks(html, pageUrl) {
   return [...new Set(abs)];
 }
 
+function extractBook(html, productUrl, sourcePage) {
+  const $ = cheerio.load(html);
+  const title = $("div.product_main h1").first().text().trim() || null;
+  const priceText = $("p.price_color").first().text().trim() || null;
+  const availabilityText = $("p.availability").first().text().replace(/\s+/g, " ").trim() || null;
+  const ratingWords = ["One", "Two", "Three", "Four", "Five"];
+  const ratingClass = $("p.star-rating").first().attr("class") || "";
+  const ratingWord = ratingWords.find((w) => ratingClass.includes(w));
+  const ratingText = ratingWord || null;
+  const descEl = $("#product_description");
+  const description = descEl.length ? descEl.next("p").first().text().trim() || null : null;
+  return {
+    title,
+    product_url: productUrl,
+    price_text: priceText,
+    availability_text: availabilityText,
+    rating_text: ratingText,
+    description,
+    source_page: sourcePage,
+    fetched_at: new Date().toISOString(),
+  };
+}
+
 export async function run() {
   let page1;
   try {
@@ -109,6 +132,22 @@ export async function run() {
     }
   }
   console.log(`discovered=${bookUrls.size} unique_urls=${bookUrls.size}`);
+
+  const rawRecords = [];
+  for (const url of bookUrls) {
+    try {
+      const p = new URL(url).pathname;
+      const res = await fetchPage(p, { useCache: true });
+      const raw = extractBook(res.html, url, `${BASE_URL}${p}`);
+      rawRecords.push(raw);
+    } catch (err) {
+      console.error(`  skip ${url}: ${err.message}`);
+    }
+  }
+  console.log(`detail_pages=${rawRecords.length}`);
+
+  const printed = { ...rawRecords[0] };
+  console.log("sample raw record:", JSON.stringify(printed, null, 2));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
