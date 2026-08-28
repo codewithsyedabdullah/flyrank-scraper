@@ -1,4 +1,5 @@
 import axios from "axios";
+import * as cheerio from "cheerio";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -51,6 +52,42 @@ async function fetchPage(rawUrl, { useCache = true } = {}) {
   return { html: resp.data, fromCache: false, size: resp.data.length };
 }
 
+const toAbsolute = (href, pageUrl) => new URL(href, pageUrl).href;
+
+async function discoverPages(fetcher) {
+  const pages = [START_URL];
+  let current = START_URL;
+  let guard = 0;
+  while (guard < 20) {
+    guard++;
+    const file = cacheFile(current);
+    if (!fs.existsSync(file)) break;
+    const $$ = cheerio.load(fs.readFileSync(file, "utf8"));
+    const next = $$("li.next a").attr("href");
+    if (!next) break;
+    const asPath = new URL(toAbsolute(next, `${BASE_URL}${current}`)).pathname;
+    if (pages.includes(asPath)) break;
+    pages.push(asPath);
+    try {
+      const res = await fetcher(asPath);
+      console.log(res.fromCache ? "CACHE HIT" : "FETCH", asPath, `${res.size} bytes`);
+      current = asPath;
+    } catch {
+      break;
+    }
+    if (pages.length >= 3) break;
+  }
+  return pages;
+}
+
+function collectBookLinks(html, pageUrl) {
+  const $ = cheerio.load(html);
+  const links = [];
+  $("article.product_pod h3 a").each((_, el) => links.push($(el).attr("href")));
+  const abs = links.map((h) => toAbsolute(h, pageUrl));
+  return [...new Set(abs)];
+}
+
 export async function run() {
   let page1;
   try {
@@ -59,6 +96,19 @@ export async function run() {
     page1 = await fetchPage(START_URL, { useCache: false });
   }
   console.log(page1.fromCache ? "CACHE HIT" : "FETCH", `page-1 ${page1.size} bytes`);
+
+  const pages = await discoverPages(fetchPage);
+  console.log(`catalogue_pages=${pages.length}`);
+
+  const bookUrls = new Set();
+  for (const p of pages) {
+    const file = cacheFile(p);
+    if (!fs.existsSync(file)) continue;
+    for (const u of collectBookLinks(fs.readFileSync(file, "utf8"), `${BASE_URL}${p}`)) {
+      bookUrls.add(u);
+    }
+  }
+  console.log(`discovered=${bookUrls.size} unique_urls=${bookUrls.size}`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
