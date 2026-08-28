@@ -129,6 +129,14 @@ npm test
 
 5 unit tests (Node's built-in test runner): price normalization, relative→absolute URLs, duplicate-URL collapse, missing-description handling, and schema rejection of a malformed record.
 
+## Bonus: AI vs Me
+
+The pipeline was built and debugged with heavy AI assistance, then reviewed by hand. Honest diff:
+
+**What the AI was better at:** producing the overall architecture instantly (cache layer, dedupe via canonical URL, retry-once policy). The structure is genuinely sound.
+**What it got wrong that I caught:** silent failure on a mislabeled `source_page` (it pointed at the book URL, not the catalogue page), an off-by-one that discovered page 3 but never fetched it (40 books instead of 60), a Map-VS-array bug that turned URLs into comma-joined strings and 404'd every detail page, and schema exports that lived inside the `run` function instead of module scope.
+**What the prompt would have to specify:** the *exact* catalogue page limit (3), the provenance field semantics, retry-eligibility (5xx/timeout yes, 404/403 no), and "report your failures".
+
 ---
 
 *Target: Books to Scrape practice sandbox only. All tools free, no credit card required.*
