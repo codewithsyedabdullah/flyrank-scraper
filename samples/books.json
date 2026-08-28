@@ -1,0 +1,41 @@
+{
+    "count":  60,
+    "books":  [
+                  {
+                      "title":  "A Light in the Attic",
+                      "product_url":  "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+                      "price_gbp":  51.77,
+                      "price_text":  "£51.77",
+                      "availability_text":  "In stock (22 available)",
+                      "rating":  3,
+                      "rating_text":  "Three",
+                      "description":  "It\u0027s hard to imagine a world without A Light in the Attic. This now-classic collection of poetry and drawings from Shel Silverstein celebrates its 20th anniversary with this special edition. Silverstein\u0027s humorous and creative verse can amuse the dowdiest of readers. Lemon-faced adults and fidgety kids sit still and read these rhythmic words and laugh and smile and love th It\u0027s hard to imagine a world without A Light in the Attic. This now-classic collection of poetry and drawings from Shel Silverstein celebrates its 20th anniversary with this special edition. Silverstein\u0027s humorous and creative verse can amuse the dowdiest of readers. Lemon-faced adults and fidgety kids sit still and read these rhythmic words and laugh and smile and love that Silverstein. Need proof of his genius? RockabyeRockabye baby, in the treetopDon\u0027t you know a treetopIs no safe place to rock?And who put you up there,And your cradle, too?Baby, I think someone down here\u0027sGot it in for you. Shel, you never sounded so good. ...more",
+                      "source_page":  "https://books.toscrape.com/catalogue/page-1.html",
+                      "fetched_at":  "2026-08-28T17:14:04.592Z"
+                  },
+                  {
+                      "title":  "Tipping the Velvet",
+                      "product_url":  "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html",
+                      "price_gbp":  53.74,
+                      "price_text":  "£53.74",
+                      "availability_text":  "In stock (20 available)",
+                      "rating":  1,
+                      "rating_text":  "One",
+                      "description":  "\"Erotic and absorbing...Written with starling power.\"--\"The New York Times Book Review \" Nan King, an oyster girl, is captivated by the music hall phenomenon Kitty Butler, a male impersonator extraordinaire treading the boards in Canterbury. Through a friend at the box office, Nan manages to visit all her shows and finally meet her heroine. Soon after, she becomes Kitty\u0027s \"Erotic and absorbing...Written with starling power.\"--\"The New York Times Book Review \" Nan King, an oyster girl, is captivated by the music hall phenomenon Kitty Butler, a male impersonator extraordinaire treading the boards in Canterbury. Through a friend at the box office, Nan manages to visit all her shows and finally meet her heroine. Soon after, she becomes Kitty\u0027s dresser and the two head for the bright lights of Leicester Square where they begin a glittering career as music-hall stars in an all-singing and dancing double act. At the same time, behind closed doors, they admit their attraction to each other and their affair begins. ...more",
+                      "source_page":  "https://books.toscrape.com/catalogue/page-1.html",
+                      "fetched_at":  "2026-08-28T17:14:04.604Z"
+                  },
+                  {
+                      "title":  "Soumission",
+                      "product_url":  "https://books.toscrape.com/catalogue/soumission_998/index.html",
+                      "price_gbp":  50.1,
+                      "price_text":  "£50.10",
+                      "availability_text":  "In stock (20 available)",
+                      "rating":  1,
+                      "rating_text":  "One",
+                      "description":  "Dans une France assez proche de la nôtre, un homme s’engage dans la carrière universitaire. Peu motivé par l’enseignement, il s’attend à une vie ennuyeuse mais calme, protégée des grands drames historiques. Cependant les forces en jeu dans le pays ont fissuré le système politique jusqu’à provoquer son effondrement. Cette implosion sans soubresauts, sans vraie révolution, s Dans une France assez proche de la nôtre, un homme s’engage dans la carrière universitaire. Peu motivé par l’enseignement, il s’attend à une vie ennuyeuse mais calme, protégée des grands drames historiques. Cependant les forces en jeu dans le pays ont fissuré le système politique jusqu’à provoquer son effondrement. Cette implosion sans soubresauts, sans vraie révolution, se développe comme un mauvais rêve.Le talent de l’auteur, sa force visionnaire nous entraînent sur un terrain ambigu et glissant ; son regard sur notre civilisation vieillissante fait coexister dans ce roman les intuitions poétiques, les effets comiques, une mélancolie fataliste.Ce livre est une saisissante fable politique et morale. ...more",
+                      "source_page":  "https://books.toscrape.com/catalogue/page-1.html",
+                      "fetched_at":  "2026-08-28T17:14:04.611Z"
+                  }
+              ]
+}
