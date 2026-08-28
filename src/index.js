@@ -123,22 +123,23 @@ export async function run() {
   const pages = await discoverPages(fetchPage);
   console.log(`catalogue_pages=${pages.length}`);
 
-  const bookUrls = new Set();
+  const bookUrls = new Map();
   for (const p of pages) {
     const file = cacheFile(p);
     if (!fs.existsSync(file)) continue;
-    for (const u of collectBookLinks(fs.readFileSync(file, "utf8"), `${BASE_URL}${p}`)) {
-      bookUrls.add(u);
+    const pageUrl = `${BASE_URL}${p}`;
+    for (const u of collectBookLinks(fs.readFileSync(file, "utf8"), pageUrl)) {
+      if (!bookUrls.has(u)) bookUrls.set(u, pageUrl);
     }
   }
   console.log(`discovered=${bookUrls.size} unique_urls=${bookUrls.size}`);
 
   const rawRecords = [];
-  for (const url of bookUrls) {
+  for (const [url, sourcePage] of bookUrls) {
     try {
       const p = new URL(url).pathname;
       const res = await fetchPage(p, { useCache: true });
-      const raw = extractBook(res.html, url, `${BASE_URL}${p}`);
+      const raw = extractBook(res.html, url, sourcePage);
       rawRecords.push(raw);
     } catch (err) {
       console.error(`  skip ${url}: ${err.message}`);
