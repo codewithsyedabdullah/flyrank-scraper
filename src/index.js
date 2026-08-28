@@ -35,6 +35,24 @@ function cacheFile(rawUrl) {
 
 let lastRequestAt = 0;
 let cacheHits = 0;
+let retries = 0;
+
+// ---------- Stage 5: fetching with one retry ----------
+async function fetchPageWithRetry(rawUrl, opts) {
+  try {
+    return await fetchPage(rawUrl, opts);
+  } catch (err) {
+    const status = err.response?.status;
+    const isRetryable = status >= 500 || err.code === "ECONNABORTED" || err.code === "ETIMEDOUT";
+    if (isRetryable) {
+      console.log(`  retrying ${rawUrl} after: ${err.message}`);
+      retries++;
+      await sleep(1000);
+      return await fetchPage(rawUrl, opts);
+    }
+    throw err; // 404 / 403 are not retried
+  }
+}
 
 async function fetchPage(rawUrl, { useCache = true } = {}) {
   const file = cacheFile(rawUrl);
@@ -112,16 +130,55 @@ function extractBook(html, productUrl, sourcePage) {
   };
 }
 
-export async function run() {
+export { normalize, bookSchema, collectBookLinks, extractBook };
+
+// ---------- Stage 4: schema + normalization (module scope so tests can import) ----------
+const bookSchema = z.object({
+  title: z.string(),
+  product_url: z.string().url(),
+  price_gbp: z.number().nonnegative(),
+  price_text: z.string(),
+  availability_text: z.string().nullable(),
+  rating: z.number().min(0).max(5),
+  rating_text: z.string().nullable(),
+  description: z.string().nullable(),
+  source_page: z.string().url(),
+  fetched_at: z.string(),
+});
+
+function normalize(raw) {
+  const priceMatch = raw.price_text?.match(/£([\d.]+)/);
+  const priceGbp = priceMatch ? parseFloat(priceMatch[1]) : null;
+  const ratingMap = { One: 1, Two: 2, Three: 3, Four: 4, Five: 5 };
+  const rating = raw.rating_text ? (ratingMap[raw.rating_text] ?? null) : null;
+  return {
+    title: raw.title,
+    product_url: raw.product_url,
+    price_gbp: priceGbp,
+    price_text: raw.price_text,
+    availability_text: raw.availability_text,
+    rating,
+    rating_text: raw.rating_text,
+    description: raw.description,
+    source_page: raw.source_page,
+    fetched_at: raw.fetched_at,
+  };
+}
+
+export async function run({ injectFakeUrl = false } = {}) {
+  const startedAt = new Date();
+  let pagesFetched = 1;
+  let failedPages = 0;
   let page1;
   try {
-    page1 = await fetchPage(START_URL, { useCache: true });
+    page1 = await fetchPageWithRetry(START_URL, { useCache: true });
   } catch {
-    page1 = await fetchPage(START_URL, { useCache: false });
+    page1 = await fetchPageWithRetry(START_URL, { useCache: false });
   }
   console.log(page1.fromCache ? "CACHE HIT" : "FETCH", `page-1 ${page1.size} bytes`);
 
-  const pages = await discoverPages(fetchPage);
+  const pages = await discoverPages(fetchPageWithRetry);
+  pagesFetched += pages.length - 1;
   console.log(`catalogue_pages=${pages.length}`);
 
   const bookUrls = new Map();
@@ -135,52 +192,26 @@ export async function run() {
   }
   console.log(`discovered=${bookUrls.size} unique_urls=${bookUrls.size}`);
 
+  const urlList = [...bookUrls.keys()];
+  if (injectFakeUrl) {
+    urlList.push("https://books.toscrape.com/catalogue/no-such-book_999/index.html");
+  }
+
   const rawRecords = [];
-  for (const [url, sourcePage] of bookUrls) {
+  for (const url of urlList) {
+    const sourcePage = bookUrls.get(url) ?? null;
     try {
-      const p = new URL(url).pathname;
-      const res = await fetchPage(p, { useCache: true });
+      const res = await fetchPageWithRetry(new URL(url).pathname, { useCache: true });
       const raw = extractBook(res.html, url, sourcePage);
       rawRecords.push(raw);
     } catch (err) {
+      failedPages++;
       console.error(`  skip ${url}: ${err.message}`);
     }
   }
   console.log(`detail_pages=${rawRecords.length}`);
 
   // Stage 4: normalize raw strings, validate with zod, dedupe by canonical URL
-  const bookSchema = z.object({
-    title: z.string(),
-    product_url: z.string().url(),
-    price_gbp: z.number().nonnegative(),
-    price_text: z.string(),
-    availability_text: z.string().nullable(),
-    rating: z.number().min(0).max(5),
-    rating_text: z.string().nullable(),
-    description: z.string().nullable(),
-    source_page: z.string().url(),
-    fetched_at: z.string(),
-  });
-
-  function normalize(raw) {
-    const priceMatch = raw.price_text?.match(/£([\d.]+)/);
-    const priceGbp = priceMatch ? parseFloat(priceMatch[1]) : null;
-    const ratingMap = { One: 1, Two: 2, Three: 3, Four: 4, Five: 5 };
-    const rating = raw.rating_text ? (ratingMap[raw.rating_text] ?? null) : null;
-    return {
-      title: raw.title,
-      product_url: raw.product_url,
-      price_gbp: priceGbp,
-      price_text: raw.price_text,
-      availability_text: raw.availability_text,
-      rating,
-      rating_text: raw.rating_text,
-      description: raw.description,
-      source_page: raw.source_page,
-      fetched_at: raw.fetched_at,
-    };
-  }
-
   const byUrl = new Map();
   const errors = [];
   for (const raw of rawRecords) {
@@ -203,10 +234,29 @@ export async function run() {
     JSON.stringify({ count: errors.length, errors }, null, 2)
   );
   console.log(`books.json -> ${books.length} valid records, errors.json -> ${errors.length}`);
+
+  // Stage 5: honest run report
+  const report = {
+    start_time: startedAt.toISOString(),
+    end_time: new Date().toISOString(),
+    duration_ms: Date.now() - startedAt.getTime(),
+    pages_fetched: pagesFetched,
+    cache_hits: cacheHits,
+    discovered_pages: pages.length,
+    unique_urls: bookUrls.size,
+    detail_pages_fetched: rawRecords.length,
+    valid_records: books.length,
+    invalid_records: errors.length,
+    failed_pages: failedPages,
+    retries,
+  };
+  fs.writeFileSync(path.join(OUTPUT_DIR, "run-report.json"), JSON.stringify(report, null, 2));
+  console.log("report:", JSON.stringify(report));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  run().catch((err) => {
+  const fake = process.argv.includes("--fake");
+  run({ injectFakeUrl: fake }).catch((err) => {
     console.error("Fatal:", err.message);
     process.exit(1);
   });
